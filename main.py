@@ -16,8 +16,6 @@ LIMIT_FPS = 60  # 20 frames-per-second maximum
 # Game Controls
 TURN_BASED = False  # turn-based game
 
-carry = Carry()
-
 map_pos = [game_map.start[0], game_map.start[1]]
 
 chunk_size = 16
@@ -26,7 +24,7 @@ screen_values = []
 
 chunk_ready = []
 
-cooldown = 0.001
+cooldown = 0.0001
 
 # Based on the game_map values, this gets a np array with the tiles ONLY around the player
 def GetScreenValues():
@@ -44,7 +42,7 @@ def GetScreenValues():
             j+=1
         j=0
         i+=1
-
+    
 # Draws the full map unless the tile to be drawn is already on screen
 def DrawFullMap ():
     global screen_values
@@ -153,6 +151,14 @@ def GetTile (tile, i, j):
     # GRASS
     elif (value < 0.7):
         set_color((20, int(255 * value * (10/7)), 20), i, j)
+        if (variant < 70):
+            return '#'
+        elif (variant < 95):
+            set_color ((16, 59, 29), i, j)
+            return '%'
+        elif (variant < 101):
+            set_color ((30, 80, 50), i, j)
+            return '!'
         return '#'
     # VALLEY
     elif (value < 0.78):
