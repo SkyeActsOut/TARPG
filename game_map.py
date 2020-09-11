@@ -56,8 +56,8 @@ for y in range(height):
 
 values = np.array(values)
 
-plt.imshow(values)
-plt.show()
+# plt.imshow(values)
+# plt.show()
 
 variants = []
 for y in range(height):

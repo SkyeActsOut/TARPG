@@ -24,7 +24,9 @@ screen_values = []
 
 chunk_ready = []
 
-cooldown = 0.0001
+cooldown = 0.001
+
+con = 0
 
 # Based on the game_map values, this gets a np array with the tiles ONLY around the player
 def GetScreenValues():
@@ -59,8 +61,8 @@ def DrawFullMap ():
         y=0
         x+=1
 
-def DrawChunk (start_i, start_j, chunk_i):
-    while not tcod.console_is_window_closed() : 
+def DrawChunk (start_i, start_j):
+    # while not tcod.console_is_window_closed() : 
         
         # if not AllChunksLoaded():
 
@@ -71,10 +73,10 @@ def DrawChunk (start_i, start_j, chunk_i):
                     continue
                 if (i == player_x and j == player_y):
                     continue
-                tile = GetTile(screen_values[i, j], i, j)
-                set_char(tile, i, j)
+                (tile, color) = GetTile(screen_values[i, j], i, j)
+                set_tile (tile, color, i, j)
 
-        chunk_ready[chunk_i] = True
+        # chunk_ready[chunk_i] = True
 
         # sleep(cooldown * 1.05)
 
@@ -92,13 +94,14 @@ def DrawChunk (start_i, start_j, chunk_i):
 #     return i * 1.5 > len(chunk_ready)
 
 def ThreadAllChunks ():
-    chunk_i = 0
-    for i in range (0, int(SCREEN_WIDTH/chunk_size)+1):
-        for j in range (0, int(SCREEN_HEIGHT/chunk_size)+1):
-            chunk_ready.append(False)
-            renderer = Thread(target=DrawChunk, args=(i*chunk_size, j*chunk_size, chunk_i))
-            renderer.start()
-            chunk_i += 1
+    while (1):
+        # chunk_i = 0
+        for i in range (0, int(SCREEN_WIDTH/chunk_size)+1):
+            for j in range (0, int(SCREEN_HEIGHT/chunk_size)+1):
+                # chunk_ready.append(False)
+                renderer = Thread(target=DrawChunk, args=(i*chunk_size, j*chunk_size))
+                renderer.start()
+                # chunk_i += 1
 
 def SetScreenValues():
     screen_values = GetScreenValues()
@@ -106,70 +109,83 @@ def SetScreenValues():
 def GetTile (tile, i, j):
     value = tile[0]
     variant = tile[1]
+
+    tile = ' '
+    color = tcod.black
+
     if (value == 0):
-        return ' '
+        return (' ', tcod.Color (0, 0, 0))
     # WATER
     elif (value < 0.3):
         # COLORS
         if (value < 0.15):
-            set_color((20, 20, 80), i, j)
+            color = (20, 20, 80)
         elif (value < 0.2):
-            set_color((20, 20, 100), i, j)
+            color = (20, 20, 100)
         elif (value < 0.235):
-            set_color((20, 20, 170), i, j)
+            color = (20, 20, 170)
         elif (value < 0.2625):
-            set_color((20, 20, 220), i, j)
+            color = (20, 20, 220)
         elif (value < 0.3):
-            set_color((20, 20, 255), i, j)
+            color = (20, 20, 255)
         # VARIANTS
         if (variant < 72):
-            return '~'
+            tile = '~'
         elif (variant < 90):
-            return '-'
+            tile = '-'
         elif (variant < 97):
-            return '^'
+            tile = '^'
         elif (variant < 101):
-            return '='
+            tile = '='
         else:
-            return '~'
+            tile = '~'
     # BEACH
     elif (value < 0.325):
         # COLORS
         if (value < 0.3125):
-            set_color((178, 162, 100), i, j)
+            color = (178, 162, 100)
         elif (value < 0.3175):
-            set_color((184, 170, 112), i, j)
+            color = (184, 170, 112)
         elif (value < 0.325):
-            set_color((194, 178, 128), i, j)
+            color = (194, 178, 128)
         # VARIANTS
         if (variant < 80):
-            return '#'
+            tile = '#'
         elif (variant < 100):
-            return '^'
+            tile = '^'
         else:
-            return '#'
+            tile = '#'
     # GRASS
     elif (value < 0.7):
-        set_color((20, int(255 * value * (10/7)), 20), i, j)
+        color = (20, int(255 * value * (10/7)), 20)
+        tile = '#'
         if (variant < 70):
-            return '#'
+            tile = '#'
         elif (variant < 95):
-            set_color ((16, 59, 29), i, j)
-            return '%'
+            color = (16, 59, 29)
+            tile = '%'
         elif (variant < 101):
-            set_color ((30, 80, 50), i, j)
-            return '!'
-        return '#'
-    # VALLEY
-    elif (value < 0.78):
-        return '.'
+            color = (30, 80, 50)
+            tile = '!'
+    #VALLEY
+    # elif (value < 0.7375):
+    #     color = (20, 50, 20)
+    #     tile = '#'
     # MOUNTAIN
     elif (value < 1):
-        if (value < 0.9):
-            set_color((133, 138, 133), i, j)
+        if (value < 0.7425 and variant < 50):
+            tile = '.'
+        if (value < 0.75):
+            color = (133, 138, 133)
+        if (value < 0.7625):
+            color = (166, 172, 166)
         elif (value < 1):
-            set_color((166, 172, 166), i, j)
-        return '^'
+            color = (200, 212, 200)
+        tile = '^'
+    else:
+        return (' ', tcod.Color (0, 0, 0))
+    
+    return (tile, color)
 
 def set_color (color, x, y):
     if (tcod.console_get_char_foreground (0, x, y) == tcod.Color(color[0], color[1], color[2])):
@@ -178,10 +194,18 @@ def set_color (color, x, y):
         tcod.console_set_char_foreground(0, x, y, color)
 
 def set_char (c, x, y):
-    if (tcod.console_get_char(0, x, y) == ord(c)):
+    if (con.ch[y, x] == ord(c)):
         return
     else:
-        tcod.console_set_char(0, x, y, c)
+        con.ch[y, x] = ord(c)
+
+def set_tile (c, color, x, y):
+    # print ((c, color))
+    con.ch[y, x] = ord (c)
+    con.fg[y, x] = tcod.Color(color[0], color[1], color[2])
+
+def set_bg (color, x, y):
+    con.bg[y, x] = tcod.Color(color[0], color[1], color[2])
 
 
 # ######################################################################
@@ -199,17 +223,17 @@ def keyHandler(key):
     if key == 119 : # W KEY
         map_pos[1] -= 1
  
-    elif key == 115 : # S KEY 
+    if key == 115 : # S KEY 
         map_pos[1] += 1
  
-    elif key == 97 : # A KEY
+    if key == 97 : # A KEY
         map_pos[0] -= 1
  
-    elif key == 100 : # D KEY
+    if key == 100 : # D KEY
         map_pos[0] += 1
 
     if (key == 119 or key == 115 or key == 97 or key == 100):
-        print (map_pos)
+        # print (map_pos)
         GetScreenValues()
     
 #############################################
@@ -227,14 +251,18 @@ def render_loop ():
     # ValueLoop = Thread(target=GetScreenValues)
     # ValueLoop.start()
 
-    while not tcod.console_is_window_closed():
-        sleep(cooldown * 1.1)
-        tcod.console_set_char_foreground(0, player_x, player_y, tcod.white)
-        tcod.console_set_char(0, player_x, player_y, '@')
+    # while not tcod.console_is_window_closed():
+    #     sleep(cooldown * 1.1)
+    #     con.ch [player_y, player_x] = ord ('@')
+    #     con.fg [player_y, player_x] = tcod.white
 
 def flusher_loop ():
     while not tcod.console_is_window_closed():
+        con.ch [player_y, player_x] = ord ('@')
+        con.fg [player_y, player_x] = tcod.white
+
         sleep(cooldown * 1.125)
+
         tcod.console_flush()
 
 def main():
@@ -246,7 +274,8 @@ def main():
  
     # Initialize screen
     title = 'SkyMocha'
-    tcod.console_init_root(SCREEN_WIDTH, SCREEN_HEIGHT, title, FULLSCREEN)
+    global con
+    con = tcod.console_init_root(SCREEN_WIDTH, SCREEN_HEIGHT, title, FULLSCREEN)
  
     # Set FPS
     tcod.sys_set_fps(LIMIT_FPS)
