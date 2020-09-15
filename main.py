@@ -73,7 +73,7 @@ def DrawChunk (start_i, start_j):
                     continue
                 if (i == player_x and j == player_y):
                     continue
-                (tile, color) = GetTile(screen_values[i, j], i, j)
+                (tile, color) = GetTile(screen_values[i, j], game_map.biomes[i, j], i, j)
                 set_tile (tile, color, i, j)
 
         # chunk_ready[chunk_i] = True
@@ -106,7 +106,7 @@ def ThreadAllChunks ():
 def SetScreenValues():
     screen_values = GetScreenValues()
 
-def GetTile (tile, i, j):
+def GetTile (tile, biome_tile, i, j):
     value = tile[0]
     variant = tile[1]
 
@@ -156,7 +156,7 @@ def GetTile (tile, i, j):
         else:
             tile = '#'
     # GRASS
-    elif (value < 0.7):
+    elif (value < 0.75):
         color = (20, int(255 * value * (10/7)), 20)
         tile = '#'
         if (variant < 70):
@@ -173,18 +173,49 @@ def GetTile (tile, i, j):
     #     tile = '#'
     # MOUNTAIN
     elif (value < 1):
-        if (value < 0.7425 and variant < 50):
+        if (value < 0.75 and variant < 50):
             tile = '.'
-        if (value < 0.75):
+        if (value < 0.7525):
             color = (133, 138, 133)
-        if (value < 0.7625):
+        elif (value < 0.775):
             color = (166, 172, 166)
         elif (value < 1):
-            color = (200, 212, 200)
+            color = (220, 250, 215)
         tile = '^'
-    else:
-        return (' ', tcod.Color (0, 0, 0))
-    
+    # if (biome_tile == 0):
+    #     return (tile, color)
+    # DESERT
+    elif (biome_tile < 0.3):
+        # COLORS
+        if (value < 0.1):
+            color = (178, 162, 100)
+        elif (value < 0.2):
+            color = (184, 170, 112)
+        elif (value < 0.3):
+            color = (194, 178, 128)
+        # VARIANTS
+        if (variant < 60):
+            tile = '#'
+        elif (variant < 85):
+            tile = '~'
+        elif (variant < 100):
+            tile = '^'
+        else:
+            tile = '#'
+    # FOREST
+    elif (biome_tile < 0.55):
+        # COLORS
+        if (variant < 42):
+            color = (20, 80, 30)
+            tile = '#'
+        elif (variant < 80):
+            color = (10, 50, 20)
+            tile = '!'
+        elif (variant < 101):
+            color = (25, 70, 42)
+            tile = '%'
+        color = (20, 80, 30)
+        tile = '#'
     return (tile, color)
 
 def set_color (color, x, y):
