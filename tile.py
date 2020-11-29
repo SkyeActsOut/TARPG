@@ -1,5 +1,15 @@
 import libtcodpy as tcod
 
+class NullTile:
+    def __init__(self):
+        self.char = ' '
+        self.color = tcod.black
+
+class BorderTile:
+    def __init__(self):
+        self.char = '#'
+        self.color = tcod.grey
+
 class Tile:
     def __init__(self, val, variant):
         tmp = self.GetTile(val, variant)

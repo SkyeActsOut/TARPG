@@ -1,7 +1,8 @@
 import libtcodpy as tcod
 import numpy as np
 from game_map import tiles, start, WIDTH, HEIGHT
-from tile import Tile
+from tile import Tile, NullTile, BorderTile
+from menu import LogsMenu
 import random
 from threading import Thread
 from time import sleep
@@ -14,9 +15,8 @@ FULLSCREEN = False
 SCREEN_WIDTH = 96  # characters wide
 SCREEN_HEIGHT = 54  # characters tall
 LIMIT_FPS = 60  # 20 frames-per-second maximum
-# Game Controls
-TURN_BASED = False  # turn-based game
 
+# Game Controls
 map_pos = [start[0], start[1]]
 
 chunk_size = 16
@@ -25,9 +25,56 @@ screen_values = []
 
 chunk_ready = []
 
+menues = [LogsMenu()]
+
 cooldown = 0.001
 
 con = 0
+
+# Checks to see if the x,y coords are on any menu
+def isOnMenu(x, y):
+    for m in menues:
+        if (y < m.height + m.y and 
+            y >= m.y and
+            x < m.width + m.x and
+            x >= m.x):
+                return True
+    else:
+        return False
+
+# Checks to see if the x,y coords are on a specific menu
+def isOnIMenu(x, y, i):
+    for m in menues:
+        if m == i:
+            if (y <= m.height + m.y and 
+                y >= m.y-1 and
+                x <= m.width + m.x and
+                x >= m.x):
+                return True
+    else:
+        return False
+
+def isOnBorder (x, y):
+    for m in menues:
+        if ( isOnIMenu (x, y, m) and 
+            (y == m.y-1 or 
+            x == m.width + m.x) and
+            ( x != SCREEN_WIDTH or
+            y-1 != SCREEN_HEIGHT)):
+                return True
+        # elif ( (y == m.y or 
+        #     x == m.x) and
+        #     ( x != 0 or
+        #     y != 0)):
+        #         return True
+    else:
+        return False
+
+def add_to_logs ():
+    menues[0].add("UWU!")
+    menues[0].add("UWU!")
+    menues[0].add("UWU!")
+    menues[0].add("UWU!")
 
 # Based on the game_map values, this gets a np array with the tiles ONLY around the player
 def GetScreenValues():
@@ -40,13 +87,16 @@ def GetScreenValues():
         for height in range(int(map_pos[1] - SCREEN_HEIGHT/2), int(map_pos[1] + SCREEN_HEIGHT/2)): # loops through the height values for what should be displayed on screen
             if (width < 0 or height < 0 or width > WIDTH-1 or height > HEIGHT-1): # checks for stuff outside the map
                 continue
-            screen_values[i, j] = tiles[width][height]
+            if (isOnMenu(i, j)):
+                screen_values[i, j] = NullTile()
+            elif (isOnBorder(i, j)):
+                screen_values[i, j] = BorderTile()
+            else:
+                screen_values[i, j] = tiles[width][height]
             j+=1
         j=0
         i+=1
 
-    print (screen_values)
-    
 # Draws the full map unless the tile to be drawn is already on screen
 def DrawFullMap ():
     global screen_values
@@ -155,7 +205,6 @@ def keyHandler(key):
 
     if (key == 119 or key == 115 or key == 97 or key == 100):
         # print (map_pos)
-        print ('UWU!')
         GetScreenValues()
     
 #############################################
@@ -183,7 +232,7 @@ def flusher_loop ():
         con.ch [player_y, player_x] = ord ('@')
         con.fg [player_y, player_x] = tcod.white
 
-        sleep(cooldown * 1.125)
+        # sleep(cooldown * 1.125)
 
         tcod.console_flush()
 
@@ -218,6 +267,6 @@ def main():
         for event in tcod.event.get():
             if event.type == "KEYDOWN":
                 exit_game = keyHandler(event.sym)
-                sleep(cooldown * 0.95)
+                # sleep(cooldown * 0.95)
 
 main()
