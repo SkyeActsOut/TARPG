@@ -1,6 +1,7 @@
 import libtcodpy as tcod
 import numpy as np
-import game_map
+from game_map import tiles, start, WIDTH, HEIGHT
+from tile import Tile
 import random
 from threading import Thread
 from time import sleep
@@ -16,7 +17,7 @@ LIMIT_FPS = 60  # 20 frames-per-second maximum
 # Game Controls
 TURN_BASED = False  # turn-based game
 
-map_pos = [game_map.start[0], game_map.start[1]]
+map_pos = [start[0], start[1]]
 
 chunk_size = 16
 
@@ -31,19 +32,20 @@ con = 0
 # Based on the game_map values, this gets a np array with the tiles ONLY around the player
 def GetScreenValues():
     global screen_values
-    screen_values = np.zeros((SCREEN_WIDTH, SCREEN_HEIGHT, 2))
+    screen_values = np.empty((SCREEN_WIDTH, SCREEN_HEIGHT), dtype=Tile)
 
     i = 0
     j = 0
     for width in range(int(map_pos[0] - SCREEN_WIDTH/2), int(map_pos[0] + SCREEN_WIDTH/2)): # Loops through the values for what should be displayed on screen
         for height in range(int(map_pos[1] - SCREEN_HEIGHT/2), int(map_pos[1] + SCREEN_HEIGHT/2)): # loops through the height values for what should be displayed on screen
-            if (width < 0 or height < 0 or width > game_map.width-1 or height > game_map.height-1): # checks for stuff outside the map
+            if (width < 0 or height < 0 or width > WIDTH-1 or height > HEIGHT-1): # checks for stuff outside the map
                 continue
-            screen_values[i, j, 0] = game_map.values[width][height]
-            screen_values[i, j, 1] = game_map.variants[width][height]
+            screen_values[i, j] = tiles[width][height]
             j+=1
         j=0
         i+=1
+
+    print (screen_values)
     
 # Draws the full map unless the tile to be drawn is already on screen
 def DrawFullMap ():
@@ -73,8 +75,8 @@ def DrawChunk (start_i, start_j):
                     continue
                 if (i == player_x and j == player_y):
                     continue
-                (tile, color) = GetTile(screen_values[i, j], game_map.biomes[i, j], i, j)
-                set_tile (tile, color, i, j)
+                # (tile, color) = GetTile(screen_values[i, j], game_map.biomes[i, j], i, j)
+                set_tile (screen_values[i, j].char, screen_values[i, j].color, i, j)
 
         # chunk_ready[chunk_i] = True
 
@@ -106,117 +108,6 @@ def ThreadAllChunks ():
 def SetScreenValues():
     screen_values = GetScreenValues()
 
-def GetTile (tile, biome_tile, i, j):
-    value = tile[0]
-    variant = tile[1]
-
-    tile = ' '
-    color = tcod.black
-
-    if (value == 0):
-        return (' ', tcod.Color (0, 0, 0))
-    # WATER
-    elif (value < 0.3):
-        # COLORS
-        if (value < 0.15):
-            color = (20, 20, 80)
-        elif (value < 0.2):
-            color = (20, 20, 100)
-        elif (value < 0.235):
-            color = (20, 20, 170)
-        elif (value < 0.2625):
-            color = (20, 20, 220)
-        elif (value < 0.3):
-            color = (20, 20, 255)
-        # VARIANTS
-        if (variant < 72):
-            tile = '~'
-        elif (variant < 90):
-            tile = '-'
-        elif (variant < 97):
-            tile = '^'
-        elif (variant < 101):
-            tile = '='
-        else:
-            tile = '~'
-    # BEACH
-    elif (value < 0.325):
-        # COLORS
-        if (value < 0.3125):
-            color = (178, 162, 100)
-        elif (value < 0.3175):
-            color = (184, 170, 112)
-        elif (value < 0.325):
-            color = (194, 178, 128)
-        # VARIANTS
-        if (variant < 80):
-            tile = '#'
-        elif (variant < 100):
-            tile = '^'
-        else:
-            tile = '#'
-    # GRASS
-    elif (value < 0.75):
-        color = (20, int(255 * value * (10/7)), 20)
-        tile = '#'
-        if (variant < 70):
-            tile = '#'
-        elif (variant < 95):
-            color = (16, 59, 29)
-            tile = '%'
-        elif (variant < 101):
-            color = (30, 80, 50)
-            tile = '!'
-    #VALLEY
-    # elif (value < 0.7375):
-    #     color = (20, 50, 20)
-    #     tile = '#'
-    # MOUNTAIN
-    elif (value < 1):
-        if (value < 0.75 and variant < 50):
-            tile = '.'
-        if (value < 0.7525):
-            color = (133, 138, 133)
-        elif (value < 0.775):
-            color = (166, 172, 166)
-        elif (value < 1):
-            color = (220, 250, 215)
-        tile = '^'
-    # if (biome_tile == 0):
-    #     return (tile, color)
-    # DESERT
-    elif (biome_tile < 0.3):
-        # COLORS
-        if (value < 0.1):
-            color = (178, 162, 100)
-        elif (value < 0.2):
-            color = (184, 170, 112)
-        elif (value < 0.3):
-            color = (194, 178, 128)
-        # VARIANTS
-        if (variant < 60):
-            tile = '#'
-        elif (variant < 85):
-            tile = '~'
-        elif (variant < 100):
-            tile = '^'
-        else:
-            tile = '#'
-    # FOREST
-    elif (biome_tile < 0.55):
-        # COLORS
-        if (variant < 42):
-            color = (20, 80, 30)
-            tile = '#'
-        elif (variant < 80):
-            color = (10, 50, 20)
-            tile = '!'
-        elif (variant < 101):
-            color = (25, 70, 42)
-            tile = '%'
-        color = (20, 80, 30)
-        tile = '#'
-    return (tile, color)
 
 def set_color (color, x, y):
     if (tcod.console_get_char_foreground (0, x, y) == tcod.Color(color[0], color[1], color[2])):
@@ -245,7 +136,6 @@ def set_bg (color, x, y):
  
  
 def keyHandler(key):
-    
     # if key.vk == tcod.KEY_ENTER and key.lalt:
     #     # Alt+Enter: toggle fullscreen
     #     tcod.console_set_fullscreen(not tcod.console_is_fullscreen())
@@ -265,6 +155,7 @@ def keyHandler(key):
 
     if (key == 119 or key == 115 or key == 97 or key == 100):
         # print (map_pos)
+        print ('UWU!')
         GetScreenValues()
     
 #############################################

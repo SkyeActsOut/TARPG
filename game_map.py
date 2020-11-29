@@ -8,6 +8,8 @@ from mpl_toolkits import mplot3d
 
 from enum import Enum
 
+from tile import Tile
+
 seed = 125
 
 generators = []
@@ -15,10 +17,10 @@ gen_i = 2
 for x in range(0, gen_i):
     generators.append (OpenSimplex(seed=seed + x*2000))
 
-height = 1000
-width = 1000
+HEIGHT = 500
+WIDTH = 500
 
-total = height + width
+total = HEIGHT + WIDTH
 
 def noise(gen, nx, ny):
     return gen.noise2d(nx, ny) / 2.0 + 0.5
@@ -42,25 +44,23 @@ def noise(gen, nx, ny):
 #             values[y][x] += values_list[v][y][x]
 #         values[y][x] /= gen_i * 0.95
 
-values = []
-for y in range(height):
-    values.append([0] * width)
-    for x in range(width):
-        nx = x/(width*0.1125) - 0.5
-        ny = y/(height*0.1125) - 0.5
+# values = []
+
+# THE MAIN WORLD-GEN ALGORITHM
+values = np.empty((HEIGHT, WIDTH))
+for y in range(HEIGHT):
+    for x in range(WIDTH):
+        nx = x/(WIDTH*0.1125) - 0.5
+        ny = y/(HEIGHT*0.1125) - 0.5
         values[y][x] = noise(generators[0], nx, ny)
-    print (f"{y * 100 / height}% DONE!")
+    print (f"{y * 100 / HEIGHT}% DONE!")
 
-values = np.array(values)
-
-# plt.imshow(values)
-# plt.show()
 
 variants = []
-for y in range(height):
+for y in range(HEIGHT):
     carry = 0
-    variants.append([0] * width)
-    for x in range(width):
+    variants.append([0] * WIDTH)
+    for x in range(WIDTH):
         variants[y][x] = random.randint(0, 100) + carry
         if (variants[y][x] > 95):
             carry += 3
@@ -127,16 +127,13 @@ def biome_gen_one():
                             desert[1] = False
 
 
-biome_gen_two()
-biomes = np.array(biomes)
-        
-print (biomes)
+# plt.imshow(values)
+# plt.show()
 
-plt.imshow(biomes)
-plt.show()
-            
+tiles = np.empty((WIDTH, HEIGHT), dtype=Tile)
+for y in range(HEIGHT):
+    for x in range(WIDTH):
+        tiles[y][x] = Tile(values[y][x], variants[y][x])
+    print (f"{y * 100 / HEIGHT}% DONE!")
 
-        # biomes[y][x] = random.randint(0, 100)
-
-
-start = (random.randrange(75, width-75), random.randrange(75, height-75))
+start = (random.randrange(75, WIDTH-75), random.randrange(75, HEIGHT-75))
