@@ -1,16 +1,21 @@
 import libtcodpy as tcod
 
-class NullTile:
-    def __init__(self):
-        self.char = ' '
-        self.color = tcod.black
+class Tile():
+    def __init__(self, t=' ', c=tcod.white):
+        self.char = t
+        if (c != tcod.white):
+            c = tcod.color.Color(c[0], c[1], c[2])
+        self.color = c
 
-class BorderTile:
+class NullTile(Tile):
     def __init__(self):
-        self.char = '#'
-        self.color = tcod.grey
+        super().__init__('#', tcod.black)
 
-class Tile:
+class BorderTile(Tile):
+    def __init__(self):
+        super().__init__('#', tcod.grey)
+
+class MapTile(Tile):
     def __init__(self, val, variant):
         tmp = self.GetTile(val, variant)
         self.char = tmp[0]

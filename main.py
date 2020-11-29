@@ -1,8 +1,8 @@
 import libtcodpy as tcod
 import numpy as np
 from game_map import tiles, start, WIDTH, HEIGHT
-from tile import Tile, NullTile, BorderTile
-from menu import LogsMenu
+from tile import Tile, NullTile, BorderTile, MapTile
+from menu import LogsMenu, StaticInfo
 import random
 from threading import Thread
 from time import sleep
@@ -25,9 +25,9 @@ screen_values = []
 
 chunk_ready = []
 
-menues = [LogsMenu()]
+menues = [LogsMenu(), StaticInfo()]
 
-cooldown = 0.001
+cooldown = 1/60
 
 con = 0
 
@@ -70,11 +70,35 @@ def isOnBorder (x, y):
     else:
         return False
 
-def add_to_logs ():
-    menues[0].add("UWU!")
-    menues[0].add("UWU!")
-    menues[0].add("UWU!")
-    menues[0].add("UWU!")
+# Checks to see if there xis an existing tile with a character in that menu
+def isTileInMenu (x, y):
+    for m in menues:
+        if (isOnIMenu(x, y, m)):
+            t = m.get_char(x, y)
+            if (t):
+                return t
+    else:
+        return False
+
+def setInfoPosition(x, y):
+    px = "000"
+    if (x < 10):
+        px = f"00{x}"
+    elif (x < 100):
+        px = f"0{x}"
+    else:
+        px = x
+
+    py = "000"
+    if (y < 10):
+        py = f"00{y}"
+    elif (y < 100):
+        py = f"0{y}"
+    else:
+        py = y
+
+    ln = f"{px}x{py}"
+    menues[1].add_line(1, 17, ln)
 
 # Based on the game_map values, this gets a np array with the tiles ONLY around the player
 def GetScreenValues():
@@ -85,33 +109,24 @@ def GetScreenValues():
     j = 0
     for width in range(int(map_pos[0] - SCREEN_WIDTH/2), int(map_pos[0] + SCREEN_WIDTH/2)): # Loops through the values for what should be displayed on screen
         for height in range(int(map_pos[1] - SCREEN_HEIGHT/2), int(map_pos[1] + SCREEN_HEIGHT/2)): # loops through the height values for what should be displayed on screen
-            if (width < 0 or height < 0 or width > WIDTH-1 or height > HEIGHT-1): # checks for stuff outside the map
-                continue
+             # IS ON A MENU TILE
             if (isOnMenu(i, j)):
-                screen_values[i, j] = NullTile()
+                screen_values[i, j] = isTileInMenu(i, j)
+            # IS ON THE BORDER OF A MNEU
             elif (isOnBorder(i, j)):
                 screen_values[i, j] = BorderTile()
+
+            elif (width < 0 or height < 0 or width >= WIDTH or height >= HEIGHT): # checks for stuff outside the map
+                screen_values[i, j] = NullTile()
+            elif (j < 0 or i < 0 or j >= SCREEN_WIDTH or i >= SCREEN_WIDTH): # checks for stuff outside the screen
+                screen_values[i, j] = NullTile()
+                
+            # IS A NORMAL SCREEN TILE
             else:
                 screen_values[i, j] = tiles[width][height]
             j+=1
         j=0
         i+=1
-
-# Draws the full map unless the tile to be drawn is already on screen
-def DrawFullMap ():
-    global screen_values
-
-    # Checks to see if the p_screen has not been defined yet
-    x = 0
-    y = 0
-    # Loops through the screen_values as well as the p_screen
-    for i in range(screen_values.shape[0]):
-        for j in range(screen_values.shape[1]):
-            tile = GetTile(screen_values[i, j], i, j)
-            set_char(tile, x, y)
-            y+=1
-        y=0
-        x+=1
 
 def DrawChunk (start_i, start_j):
     # while not tcod.console_is_window_closed() : 
@@ -126,7 +141,10 @@ def DrawChunk (start_i, start_j):
                 if (i == player_x and j == player_y):
                     continue
                 # (tile, color) = GetTile(screen_values[i, j], game_map.biomes[i, j], i, j)
-                set_tile (screen_values[i, j].char, screen_values[i, j].color, i, j)
+                if (screen_values[i, j]):
+                    set_tile (screen_values[i, j].char, screen_values[i, j].color, i, j)
+                else:
+                    set_tile ("#", tcod.black, i, j)
 
         # chunk_ready[chunk_i] = True
 
@@ -148,11 +166,13 @@ def DrawChunk (start_i, start_j):
 def ThreadAllChunks ():
     while (1):
         # chunk_i = 0
+        sleep(cooldown)
         for i in range (0, int(SCREEN_WIDTH/chunk_size)+1):
             for j in range (0, int(SCREEN_HEIGHT/chunk_size)+1):
                 # chunk_ready.append(False)
                 renderer = Thread(target=DrawChunk, args=(i*chunk_size, j*chunk_size))
                 renderer.start()
+                renderer.join()
                 # chunk_i += 1
 
 def SetScreenValues():
@@ -205,6 +225,7 @@ def keyHandler(key):
 
     if (key == 119 or key == 115 or key == 97 or key == 100):
         # print (map_pos)
+        setInfoPosition(map_pos[1], map_pos[0])
         GetScreenValues()
     
 #############################################
@@ -232,7 +253,7 @@ def flusher_loop ():
         con.ch [player_y, player_x] = ord ('@')
         con.fg [player_y, player_x] = tcod.white
 
-        # sleep(cooldown * 1.125)
+        sleep(cooldown)
 
         tcod.console_flush()
 
@@ -267,6 +288,6 @@ def main():
         for event in tcod.event.get():
             if event.type == "KEYDOWN":
                 exit_game = keyHandler(event.sym)
-                # sleep(cooldown * 0.95)
+                sleep(cooldown)
 
 main()
