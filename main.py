@@ -2,10 +2,11 @@ import libtcodpy as tcod
 import numpy as np
 from game_map import tiles, start, WIDTH, HEIGHT
 from tile import Tile, NullTile, BorderTile, MapTile
-from menu import LogsMenu, StaticInfo
+from menu import LogsMenu, StaticInfo, StaticMenu
 import random
 from threading import Thread
 from time import sleep
+from entities import Player
 
 # ######################################################################
 # Global Game Settings
@@ -16,6 +17,8 @@ SCREEN_WIDTH = 96  # characters wide
 SCREEN_HEIGHT = 54  # characters tall
 LIMIT_FPS = 60  # 20 frames-per-second maximum
 
+exit_game = False
+
 # Game Controls
 map_pos = [start[0], start[1]]
 
@@ -25,11 +28,41 @@ screen_values = []
 
 chunk_ready = []
 
-menues = [LogsMenu(), StaticInfo()]
+menues = [LogsMenu(), StaticInfo(), StaticMenu(1, SCREEN_HEIGHT-14, 13, 13)]
 
 cooldown = 1/60
 
 con = 0
+
+p = Player()
+
+def getAllPoints (radius):
+    dia = radius*2
+    cnt = 0
+    # sq = dia * dia
+    for i in range (dia):
+        for j in range (dia):
+            if (i**2 + j**2 > radius**2):
+                cnt+=1
+    return cnt
+circle_r_five_points = getAllPoints(6)
+print (circle_r_five_points)
+
+def isHealthCircle(health_covered, x, y):
+    circle_radius = 6
+    circle_center_x = 7
+    circle_center_y = SCREEN_HEIGHT - circle_radius - 2# Subtract more to move up/down
+    
+    if ((circle_center_x - x)**2 + (circle_center_y - y)**2 < circle_radius**2):
+        num_of_points = circle_r_five_points
+        health_ratio = p.getHealth() / p.getMaxHealth()
+        # print (num_of_points - health_covered)
+        # print (num_of_points * health_ratio)
+        if (num_of_points - health_covered <= num_of_points * health_ratio):
+            return 1
+        else:
+            return 0
+    return -1
 
 # Checks to see if the x,y coords are on any menu
 def isOnMenu(x, y):
@@ -49,7 +82,7 @@ def isOnIMenu(x, y, i):
             if (y <= m.height + m.y and 
                 y >= m.y-1 and
                 x <= m.width + m.x and
-                x >= m.x):
+                x >= m.x-1):
                 return True
     else:
         return False
@@ -58,7 +91,9 @@ def isOnBorder (x, y):
     for m in menues:
         if ( isOnIMenu (x, y, m) and 
             (y == m.y-1 or 
-            x == m.width + m.x) and
+            y == m.height + m.y or
+            x == m.width + m.x or
+            x == m.x-1) and
             ( x != SCREEN_WIDTH or
             y-1 != SCREEN_HEIGHT)):
                 return True
@@ -107,10 +142,26 @@ def GetScreenValues():
 
     i = 0
     j = 0
+    health_covered = 0
     for width in range(int(map_pos[0] - SCREEN_WIDTH/2), int(map_pos[0] + SCREEN_WIDTH/2)): # Loops through the values for what should be displayed on screen
         for height in range(int(map_pos[1] - SCREEN_HEIGHT/2), int(map_pos[1] + SCREEN_HEIGHT/2)): # loops through the height values for what should be displayed on screen
+
+            # RENDER ORDER
+
+            # THE HEALTH CIRCLE
+            
+            isHealth = isHealthCircle(health_covered, i, j)
+            if (isHealth == 2):
+                screen_values[i, j] = Tile('#', tcod.grey)
+            elif (isHealth == 1):
+                screen_values[i, j] = Tile('#', tcod.red)
+                health_covered+=1
+            elif (isHealth == 0):
+                screen_values[i, j] = Tile('#', tcod.black)
+                health_covered+=1
+
              # IS ON A MENU TILE
-            if (isOnMenu(i, j)):
+            elif (isOnMenu(i, j)):
                 screen_values[i, j] = isTileInMenu(i, j)
             # IS ON THE BORDER OF A MNEU
             elif (isOnBorder(i, j)):
@@ -164,7 +215,7 @@ def DrawChunk (start_i, start_j):
 #     return i * 1.5 > len(chunk_ready)
 
 def ThreadAllChunks ():
-    while (1):
+    while not tcod.console_is_window_closed() and not exit_game:
         # chunk_i = 0
         sleep(cooldown)
         for i in range (0, int(SCREEN_WIDTH/chunk_size)+1):
@@ -194,7 +245,7 @@ def set_char (c, x, y):
 def set_tile (c, color, x, y):
     # print ((c, color))
     con.ch[y, x] = ord (c)
-    con.fg[y, x] = tcod.Color(color[0], color[1], color[2])
+    con.fg[y, x] = color
 
 def set_bg (color, x, y):
     con.bg[y, x] = tcod.Color(color[0], color[1], color[2])
@@ -249,7 +300,7 @@ def render_loop ():
     #     con.fg [player_y, player_x] = tcod.white
 
 def flusher_loop ():
-    while not tcod.console_is_window_closed():
+    while not tcod.console_is_window_closed() and not exit_game:
         con.ch [player_y, player_x] = ord ('@')
         con.fg [player_y, player_x] = tcod.white
 
@@ -258,10 +309,11 @@ def flusher_loop ():
         tcod.console_flush()
 
 def main():
+    global exit_game
     # Setup player
  
     # Setup Font
-    font_filename = 'arial16x16.png'
+    font_filename = 'font.png'
     tcod.console_set_custom_font(f"./assets/{font_filename}", tcod.FONT_TYPE_GREYSCALE | tcod.FONT_LAYOUT_TCOD)
  
     # Initialize screen
@@ -275,8 +327,6 @@ def main():
     SetScreenValues()
     # DrawFullMap(p_screen=-1)
 
-    exit_game = False
-
     renderer = Thread(target=render_loop)
     renderer.start()
 
@@ -284,7 +334,7 @@ def main():
     flusher.start()
 
     while not tcod.console_is_window_closed() and not exit_game:
-    
+        
         for event in tcod.event.get():
             if event.type == "KEYDOWN":
                 exit_game = keyHandler(event.sym)

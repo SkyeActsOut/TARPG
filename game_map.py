@@ -8,7 +8,7 @@ from mpl_toolkits import mplot3d
 
 from enum import Enum
 
-from tile import Tile
+from tile import MapTile, Tile
 
 seed = 125
 
@@ -17,8 +17,8 @@ gen_i = 2
 for x in range(0, gen_i):
     generators.append (OpenSimplex(seed=seed + x*2000))
 
-HEIGHT = 500
-WIDTH = 500
+HEIGHT = 250
+WIDTH = 250
 
 total = HEIGHT + WIDTH
 
@@ -133,7 +133,7 @@ def biome_gen_one():
 tiles = np.empty((WIDTH, HEIGHT), dtype=Tile)
 for y in range(HEIGHT):
     for x in range(WIDTH):
-        tiles[y][x] = Tile(values[y][x], variants[y][x])
+        tiles[y][x] = MapTile(values[y][x], variants[y][x])
     print (f"{y * 100 / HEIGHT}% DONE!")
 
 start = (random.randrange(75, WIDTH-75), random.randrange(75, HEIGHT-75))
