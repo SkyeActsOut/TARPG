@@ -23,10 +23,10 @@ class Menu:
         if (self.menu_text[rel_y][rel_x] != '|'):
             return Tile(self.menu_text[rel_y][rel_x])
         else:
-            if (isinstance(self, StaticMenu)):
-                return Tile('#', (22, 22, 22), rl_capable=True)
-            else:
-                return Tile('#', (22, 22, 22))
+            # if (isinstance(self, StaticMenu)):
+            return Tile('#', (33, 33, 33))
+            # else:
+                # return Tile('#', (22, 22, 22))
     
     def init_lines (self):
         self.menu_text = empty((self.height, self.width), dtype=str)
@@ -97,13 +97,14 @@ class StaticMenu (Menu):
         self.init_lines()
 
 class CircleBar ():
-    def __init__ (self, radius, x, y, color):
+    def __init__ (self, radius, x, y, color, bg_color):
             
         self.radius = radius
         self.center_x = x
         self.center_y = y
         self.pnt_count = self.getAllPoints(radius)
         self.color = color
+        self.bg_color = bg_color
 
     def isInCircle(self, player, covered, x, y, health_mana):    
 

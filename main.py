@@ -1,3 +1,6 @@
+#RESOURCES
+#http://cheesesun.blogspot.com/2009/10/fast-rendering-with-libtcod-in-python.html
+
 import libtcodpy as tcod
 import numpy as np
 from game_map import tiles, start, WIDTH, HEIGHT
@@ -29,7 +32,8 @@ screen_values = []
 chunk_ready = []
 
 menues = [LogsMenu(), StaticInfo(), StaticMenu(1, SCREEN_HEIGHT-14, 13, 13), StaticMenu(SCREEN_WIDTH - 14, SCREEN_HEIGHT-14, 13, 13)]
-bars = [CircleBar(6, 7, SCREEN_HEIGHT - 8, tcod.red), CircleBar(6, SCREEN_WIDTH - 8, SCREEN_HEIGHT - 8, tcod.blue)]
+bars = [CircleBar(6, 7, SCREEN_HEIGHT - 8, (175, 22, 22), (55, 22, 22)), 
+        CircleBar(6, SCREEN_WIDTH - 8, SCREEN_HEIGHT - 8, (22, 22, 200), (22, 22, 55))]
 
 game_mem_save = False
 
@@ -37,7 +41,28 @@ cooldown = 1/60
 
 con = 0
 
+player_x = int (SCREEN_WIDTH / 2)
+player_y = int (SCREEN_HEIGHT / 2)
+
 p = Player()
+
+class Cell (object):
+    def __init__ (self, fg,  bg, char):
+        self.fg = fg
+        self.bg = (1, 1, 1)
+        self.char = char
+
+def compile_scene (raw_scene):
+    scene = []
+
+    for y in range (SCREEN_HEIGHT):
+        scene.append ([])
+
+        for x in range (SCREEN_WIDTH):
+            cell = raw_scene[y][x]
+            scene[y].append ('%c%c%c%c%c%c%c%c%c%c' % ((tcod.COLCTRL_FORE_RGB, ) + cell.fg + (tcod.COLCTRL_BACK_RGB, ) + cell.bg + (cell.char, tcod.COLCTRL_STOP)))
+
+    return scene
 
 # Checks to see if the x,y coords are on any menu
 def isOnMenu(x, y):
@@ -125,6 +150,11 @@ def GetScreenValues():
             # RENDER ORDER
             stop = False
 
+            if (i == player_x and j == player_y):
+                screen_values[i, j] = Tile('#', (1, 1, 255))
+                j+=1
+                continue
+
             # THE HEALTH CIRCLE
             isBar = bars[0].isInCircle(p, health_covered, i, j, True)
             if (isBar == 1):
@@ -133,7 +163,7 @@ def GetScreenValues():
                 j+=1
                 continue
             elif (isBar == 0):
-                screen_values[i, j] = Tile('#', tcod.black)
+                screen_values[i, j] = Tile('#', bars[0].bg_color)
                 health_covered+=1
                 j+=1
                 continue
@@ -146,7 +176,7 @@ def GetScreenValues():
                 j+=1
                 continue
             elif (isBar == 0):
-                screen_values[i, j] = Tile('#', tcod.black)
+                screen_values[i, j] = Tile('#', bars[1].bg_color)
                 mana_coverd+=1
                 j+=1
                 continue
@@ -167,11 +197,11 @@ def GetScreenValues():
                 continue
 
             elif (width < 0 or height < 0 or width >= WIDTH or height >= HEIGHT): # checks for stuff outside the map
-                screen_values[i, j] = NullTile()
+                screen_values[i, j] = Tile(' ', (0, 0, 0))
                 j+=1
                 continue
             elif (j < 0 or i < 0 or j >= SCREEN_WIDTH or i >= SCREEN_WIDTH): # checks for stuff outside the screen
-                screen_values[i, j] = NullTile()
+                screen_values[i, j] = Tile(' ', (0, 0, 0))
                 j+=1
                 continue
                 
@@ -190,6 +220,16 @@ def GetScreenValues():
                     continue
         j=0
         i+=1
+
+    raw_scene = [[
+        Cell (
+            screen_values[x, y].color, 
+            (0, 0, 0),
+            screen_values[x, y].char
+        ) for x in range (SCREEN_WIDTH)] for y in range (SCREEN_HEIGHT)
+    ]
+    pre_compiled_scene = compile_scene(raw_scene)
+    LineRenderScreen(pre_compiled_scene)
 
 def DrawChunk (start_i, start_j):
     # while not tcod.console_is_window_closed() : 
@@ -213,7 +253,7 @@ def DrawChunk (start_i, start_j):
                             c.reload = True
                         set_tile (c.char, c.color, i, j)
                 else:
-                    set_tile ("#", tcod.black, i, j)
+                    set_tile ("#", (0, 0, 0), i, j)
 
         # chunk_ready[chunk_i] = True
 
@@ -244,17 +284,25 @@ def ThreadAllChunks ():
                 renderer.join()
                 # chunk_i += 1
 
+def LineRenderScreen(pre_compiled_scene):
+    # print (pre_compiled_scene)
+    scene_str = [''.join (pre_compiled_scene[y]) for y in range (SCREEN_HEIGHT)]
+
+    for y in range (SCREEN_HEIGHT):
+        con.print_(0, y, scene_str[y], alignment=tcod.LEFT)
+        # tcod.console_print_ex (con, 0, y, tcod.BKGND_SET, tcod.LEFT, scene_str[y])
+
 def SetScreenValues():
     screen_values = GetScreenValues()
 
 
-def set_tile (c, color, x, y):
-    # print ((c, color))
-    con.ch[y, x] = ord (c)
-    con.fg[y, x] = color
+# def set_tile (c, color, x, y):
+#     # print ((c, color))
+#     con.ch[y, x] = ord (c)
+#     con.fg[y, x] = color
 
-def set_bg (color, x, y):
-    con.bg[y, x] = tcod.Color(color[0], color[1], color[2])
+# def set_bg (color, x, y):
+#     con.bg[y, x] = tcod.Color(color[0], color[1], color[2])
 
 
 # ######################################################################
@@ -292,10 +340,12 @@ def keyHandler(key):
  
 def render_loop ():
     global player_x, player_y
-    player_x = int (SCREEN_WIDTH / 2)
-    player_y = int (SCREEN_HEIGHT / 2)
 
-    ThreadAllChunks()
+    # SetScreenValues()
+
+    # ThreadAllChunks()
+
+    # LineRenderScreen()
 
     # ValueLoop = Thread(target=GetScreenValues)
     # ValueLoop.start()
@@ -307,8 +357,8 @@ def render_loop ():
 
 def flusher_loop ():
     while not tcod.console_is_window_closed() and not exit_game:
-        con.ch [player_y, player_x] = ord ('@')
-        con.fg [player_y, player_x] = tcod.white
+        # con.ch [player_y, player_x] = ord ('@')
+        # con.fg [player_y, player_x] = (255, 255, 255)
 
         sleep(cooldown)
 

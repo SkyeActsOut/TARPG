@@ -1,28 +1,26 @@
 import libtcodpy as tcod
 
 class Tile():
-    def __init__(self, t=' ', c=tcod.white, rl_capable=False):
+    def __init__(self, t=' ', c=(255, 255, 255), rl_capable=False):
         self.rl_capable = rl_capable
         self.reload = False
         self.char = t
-        if (c != tcod.white):
-            c = tcod.color.Color(c[0], c[1], c[2])
         self.color = c
 
 class NullTile(Tile):
     def __init__(self):
-        super().__init__('#', tcod.black)
+        super().__init__('#', (0, 0, 0))
 
 class BorderTile(Tile):
     def __init__(self):
-        super().__init__('#', tcod.grey)
+        super().__init__('#', (55, 55, 55))
 
         self.reload = False
         self.rl_capable = True
 
 class MapTile(Tile):
     def __init__(self, val, variant):
-        super().__init__('#', tcod.grey)
+        super().__init__('#', (55, 55, 55))
         tmp = self.GetTile(val, variant)
         self.char = tmp[0]
         self.color = tmp[1]
@@ -30,10 +28,10 @@ class MapTile(Tile):
     def GetTile (self, value, variant):
 
         tile = ' '
-        color = tcod.black
+        color = (0, 0, 0)
 
         if (value == 0):
-            return (' ', tcod.Color (0, 0, 0))
+            return (' ', (0, 0, 0))
         # WATER
         elif (value < 0.3):
             # COLORS
