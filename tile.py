@@ -1,7 +1,9 @@
 import libtcodpy as tcod
 
 class Tile():
-    def __init__(self, t=' ', c=tcod.white):
+    def __init__(self, t=' ', c=tcod.white, rl_capable=False):
+        self.rl_capable = rl_capable
+        self.reload = False
         self.char = t
         if (c != tcod.white):
             c = tcod.color.Color(c[0], c[1], c[2])
@@ -15,8 +17,12 @@ class BorderTile(Tile):
     def __init__(self):
         super().__init__('#', tcod.grey)
 
+        self.reload = False
+        self.rl_capable = True
+
 class MapTile(Tile):
     def __init__(self, val, variant):
+        super().__init__('#', tcod.grey)
         tmp = self.GetTile(val, variant)
         self.char = tmp[0]
         self.color = tmp[1]

@@ -2,7 +2,7 @@ import libtcodpy as tcod
 import numpy as np
 from game_map import tiles, start, WIDTH, HEIGHT
 from tile import Tile, NullTile, BorderTile, MapTile
-from menu import LogsMenu, StaticInfo, StaticMenu
+from menu import LogsMenu, StaticInfo, StaticMenu, CircleBar
 import random
 from threading import Thread
 from time import sleep
@@ -28,41 +28,16 @@ screen_values = []
 
 chunk_ready = []
 
-menues = [LogsMenu(), StaticInfo(), StaticMenu(1, SCREEN_HEIGHT-14, 13, 13)]
+menues = [LogsMenu(), StaticInfo(), StaticMenu(1, SCREEN_HEIGHT-14, 13, 13), StaticMenu(SCREEN_WIDTH - 14, SCREEN_HEIGHT-14, 13, 13)]
+bars = [CircleBar(6, 7, SCREEN_HEIGHT - 8, tcod.red), CircleBar(6, SCREEN_WIDTH - 8, SCREEN_HEIGHT - 8, tcod.blue)]
+
+game_mem_save = False
 
 cooldown = 1/60
 
 con = 0
 
 p = Player()
-
-def getAllPoints (radius):
-    dia = radius*2
-    cnt = 0
-    # sq = dia * dia
-    for i in range (dia):
-        for j in range (dia):
-            if (i**2 + j**2 > radius**2):
-                cnt+=1
-    return cnt
-circle_r_five_points = getAllPoints(6)
-print (circle_r_five_points)
-
-def isHealthCircle(health_covered, x, y):
-    circle_radius = 6
-    circle_center_x = 7
-    circle_center_y = SCREEN_HEIGHT - circle_radius - 2# Subtract more to move up/down
-    
-    if ((circle_center_x - x)**2 + (circle_center_y - y)**2 < circle_radius**2):
-        num_of_points = circle_r_five_points
-        health_ratio = p.getHealth() / p.getMaxHealth()
-        # print (num_of_points - health_covered)
-        # print (num_of_points * health_ratio)
-        if (num_of_points - health_covered <= num_of_points * health_ratio):
-            return 1
-        else:
-            return 0
-    return -1
 
 # Checks to see if the x,y coords are on any menu
 def isOnMenu(x, y):
@@ -143,39 +118,76 @@ def GetScreenValues():
     i = 0
     j = 0
     health_covered = 0
+    mana_coverd = 0
     for width in range(int(map_pos[0] - SCREEN_WIDTH/2), int(map_pos[0] + SCREEN_WIDTH/2)): # Loops through the values for what should be displayed on screen
         for height in range(int(map_pos[1] - SCREEN_HEIGHT/2), int(map_pos[1] + SCREEN_HEIGHT/2)): # loops through the height values for what should be displayed on screen
 
             # RENDER ORDER
+            stop = False
 
             # THE HEALTH CIRCLE
-            
-            isHealth = isHealthCircle(health_covered, i, j)
-            if (isHealth == 2):
-                screen_values[i, j] = Tile('#', tcod.grey)
-            elif (isHealth == 1):
-                screen_values[i, j] = Tile('#', tcod.red)
+            isBar = bars[0].isInCircle(p, health_covered, i, j, True)
+            if (isBar == 1):
+                screen_values[i, j] = Tile('#', bars[0].color)
                 health_covered+=1
-            elif (isHealth == 0):
+                j+=1
+                continue
+            elif (isBar == 0):
                 screen_values[i, j] = Tile('#', tcod.black)
                 health_covered+=1
+                j+=1
+                continue
 
-             # IS ON A MENU TILE
+            # MANA CIRCLE
+            isBar = bars[1].isInCircle(p, mana_coverd, i, j, False)
+            if (isBar == 1):
+                screen_values[i, j] = Tile('#', bars[1].color)
+                mana_coverd+=1
+                j+=1
+                continue
+            elif (isBar == 0):
+                screen_values[i, j] = Tile('#', tcod.black)
+                mana_coverd+=1
+                j+=1
+                continue
+
+            # IS ON A MENU TILE
             elif (isOnMenu(i, j)):
-                screen_values[i, j] = isTileInMenu(i, j)
+                t = isTileInMenu(i, j)
+                if (screen_values[i, j] == t):
+                    screen_values[i, j].reload = True
+                else: 
+                    screen_values[i, j] = t
+                j+=1
+                continue
             # IS ON THE BORDER OF A MNEU
             elif (isOnBorder(i, j)):
                 screen_values[i, j] = BorderTile()
+                j+=1
+                continue
 
             elif (width < 0 or height < 0 or width >= WIDTH or height >= HEIGHT): # checks for stuff outside the map
                 screen_values[i, j] = NullTile()
+                j+=1
+                continue
             elif (j < 0 or i < 0 or j >= SCREEN_WIDTH or i >= SCREEN_WIDTH): # checks for stuff outside the screen
                 screen_values[i, j] = NullTile()
+                j+=1
+                continue
                 
             # IS A NORMAL SCREEN TILE
             else:
-                screen_values[i, j] = tiles[width][height]
-            j+=1
+                t = tiles[width][height]
+                # The tile already has been drawn that exact same way; skip
+                if (t == screen_values[i, j]):
+                    screen_values[i, j].reload = True
+                    j+=1
+                    continue
+                # There is a new tile, it must be redrawn
+                else:
+                    screen_values[i, j] = t
+                    j+=1
+                    continue
         j=0
         i+=1
 
@@ -191,9 +203,15 @@ def DrawChunk (start_i, start_j):
                     continue
                 if (i == player_x and j == player_y):
                     continue
-                # (tile, color) = GetTile(screen_values[i, j], game_map.biomes[i, j], i, j)
-                if (screen_values[i, j]):
-                    set_tile (screen_values[i, j].char, screen_values[i, j].color, i, j)
+
+                c = screen_values[i, j]
+                if (c):
+                    if (c.reload):
+                        continue
+                    else:
+                        if (c.rl_capable):
+                            c.reload = True
+                        set_tile (c.char, c.color, i, j)
                 else:
                     set_tile ("#", tcod.black, i, j)
 
@@ -229,18 +247,6 @@ def ThreadAllChunks ():
 def SetScreenValues():
     screen_values = GetScreenValues()
 
-
-def set_color (color, x, y):
-    if (tcod.console_get_char_foreground (0, x, y) == tcod.Color(color[0], color[1], color[2])):
-        return
-    else:
-        tcod.console_set_char_foreground(0, x, y, color)
-
-def set_char (c, x, y):
-    if (con.ch[y, x] == ord(c)):
-        return
-    else:
-        con.ch[y, x] = ord(c)
 
 def set_tile (c, color, x, y):
     # print ((c, color))
@@ -320,7 +326,7 @@ def main():
     title = 'SkyMocha'
     global con
     con = tcod.console_init_root(SCREEN_WIDTH, SCREEN_HEIGHT, title, FULLSCREEN)
- 
+    
     # Set FPS
     tcod.sys_set_fps(LIMIT_FPS)
  

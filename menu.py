@@ -1,6 +1,6 @@
 SCREEN_HEIGHT = 54
 from tile import Tile
-
+import libtcodpy as tcod
 from numpy import empty
 
 class Menu:
@@ -23,7 +23,10 @@ class Menu:
         if (self.menu_text[rel_y][rel_x] != '|'):
             return Tile(self.menu_text[rel_y][rel_x])
         else:
-            return Tile('#', (22, 22, 22))
+            if (isinstance(self, StaticMenu)):
+                return Tile('#', (22, 22, 22), rl_capable=True)
+            else:
+                return Tile('#', (22, 22, 22))
     
     def init_lines (self):
         self.menu_text = empty((self.height, self.width), dtype=str)
@@ -49,7 +52,7 @@ class LogsMenu (Menu):
         super().__init__()
         
         self.height = 11
-        self.width = 50
+        self.width = 66
 
         self.x = 15
         self.y = SCREEN_HEIGHT - self.height - 1
@@ -58,10 +61,12 @@ class LogsMenu (Menu):
 
         self.init_lines()
 
-        self.add_line(0, 1, "UWU!")
-        self.add_line(1, 1, "S-senpai~!")
-        self.add_line(2, 1, "P-pwease notice me!!!!")
-        self.add_line(3, 1, "S.. senpai...")
+        self.add_line(1, 1, "Hello!")
+        self.add_line(2, 1, "This is the first log!")
+        self.add_line(3, 1, "It's added manually and entirely for testing")
+        # self.add_line(1, 1, "S-senpai~!")
+        # self.add_line(2, 1, "P-pwease notice me!!!!")
+        # self.add_line(3, 1, "S.. senpai...")
 
 # The top left info menu for static info
 class StaticInfo (Menu):
@@ -90,3 +95,36 @@ class StaticMenu (Menu):
         self.y = y
 
         self.init_lines()
+
+class CircleBar ():
+    def __init__ (self, radius, x, y, color):
+            
+        self.radius = radius
+        self.center_x = x
+        self.center_y = y
+        self.pnt_count = self.getAllPoints(radius)
+        self.color = color
+
+    def isInCircle(self, player, covered, x, y, health_mana):    
+
+        if ((self.center_x - x)**2 + (self.center_y - y)**2 < self.radius**2):
+            ratio = 0
+            if (health_mana):
+                ratio = player.getHealth() / player.getMaxHealth()
+            else:
+                ratio = player.getMana() / player.getMaxMana()
+            if (self.pnt_count - covered <= self.pnt_count  * ratio):
+                return 1
+            else:
+                return 0
+        return -1
+
+    def getAllPoints (self, radius):
+        dia = radius*2
+        cnt = 0
+        # sq = dia * dia
+        for i in range (dia):
+            for j in range (dia):
+                if (i**2 + j**2 > radius**2):
+                    cnt+=1
+        return cnt
