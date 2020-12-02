@@ -9,7 +9,7 @@ class Tile():
 
 class NullTile(Tile):
     def __init__(self):
-        super().__init__('#', (0, 0, 0))
+        super().__init__('#', (1, 1, 1))
 
 class BorderTile(Tile):
     def __init__(self):
@@ -74,7 +74,21 @@ class MapTile(Tile):
                 tile = '#'
         # GRASS
         elif (value < 0.75):
-            color = (20, int(255 * value * (10/7)), 20)
+            g_val = int(255 * value * (10/7))
+            if (g_val <= 50):
+                g_val = 55
+            elif (g_val <= 85):
+                g_val = 85
+            elif (g_val <= 135):
+                g_val = 135
+            elif (g_val <= 185):
+                g_val = 185
+            elif (g_val <= 215):
+                g_val = 215
+            elif (g_val <= 255):
+                g_val = 225
+            color = (20, g_val, 20)
+
             tile = '#'
             if (variant < 70):
                 tile = '#'

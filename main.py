@@ -10,6 +10,7 @@ import random
 from threading import Thread
 from time import sleep
 from entities import Player
+import abilities
 
 # ######################################################################
 # Global Game Settings
@@ -59,8 +60,8 @@ def compile_scene (raw_scene):
         scene.append ([])
 
         for x in range (SCREEN_WIDTH):
-            cell = raw_scene[y][x]
-            scene[y].append ('%c%c%c%c%c%c%c%c%c%c' % ((tcod.COLCTRL_FORE_RGB, ) + cell.fg + (tcod.COLCTRL_BACK_RGB, ) + cell.bg + (cell.char, tcod.COLCTRL_STOP)))
+            cell = raw_scene[x][y]
+            scene[y].append ('%c%c%c%c%c%c%c%c%c%c' % ((tcod.COLCTRL_FORE_RGB, ) + cell.color + (tcod.COLCTRL_BACK_RGB, ) + (1, 1, 1) + (cell.char, tcod.COLCTRL_STOP)))
 
     return scene
 
@@ -151,7 +152,7 @@ def GetScreenValues():
             stop = False
 
             if (i == player_x and j == player_y):
-                screen_values[i, j] = Tile('#', (1, 1, 255))
+                screen_values[i, j] = Tile('#', (255, 20, 255))
                 j+=1
                 continue
 
@@ -196,12 +197,23 @@ def GetScreenValues():
                 j+=1
                 continue
 
-            elif (width < 0 or height < 0 or width >= WIDTH or height >= HEIGHT): # checks for stuff outside the map
-                screen_values[i, j] = Tile(' ', (0, 0, 0))
+            # CHECKS FOR PROJECTILES & SPELLS
+            for ability in p.active_abilities:
+                for proj in ability.projectiles:
+                    if (i == proj.curr_x and j == proj.curr_y):
+                        screen_values[i, j] = Tile('-')
+                        stop=True
+                        break
+            if (stop):
+                j+=1
+                continue
+
+            if (width < 0 or height < 0 or width >= WIDTH or height >= HEIGHT): # checks for stuff outside the map
+                screen_values[i, j] = NullTile()
                 j+=1
                 continue
             elif (j < 0 or i < 0 or j >= SCREEN_WIDTH or i >= SCREEN_WIDTH): # checks for stuff outside the screen
-                screen_values[i, j] = Tile(' ', (0, 0, 0))
+                screen_values[i, j] = NullTile()
                 j+=1
                 continue
                 
@@ -221,15 +233,20 @@ def GetScreenValues():
         j=0
         i+=1
 
-    raw_scene = [[
-        Cell (
-            screen_values[x, y].color, 
-            (0, 0, 0),
-            screen_values[x, y].char
-        ) for x in range (SCREEN_WIDTH)] for y in range (SCREEN_HEIGHT)
-    ]
-    pre_compiled_scene = compile_scene(raw_scene)
-    LineRenderScreen(pre_compiled_scene)
+    pre_compiled_scene = compile_scene(screen_values)
+    ThreadLines (pre_compiled_scene)
+    
+    # LineRenderScreen(pre_compiled_scene, 0, SCREEN_HEIGHT)
+    # LineRenderFullScreen(pre_compiled_scene)
+
+def ThreadLines(s):
+    chunk_cnt = 2
+    chunk_size = int(SCREEN_HEIGHT / chunk_cnt)
+    for i in range (chunk_cnt):
+        # chunk_ready.append(False)
+        renderer = Thread(target=LineRenderScreen, args=(s, i*chunk_size, i*chunk_size+chunk_size))
+        renderer.start()
+        renderer.join()
 
 def DrawChunk (start_i, start_j):
     # while not tcod.console_is_window_closed() : 
@@ -284,13 +301,21 @@ def ThreadAllChunks ():
                 renderer.join()
                 # chunk_i += 1
 
-def LineRenderScreen(pre_compiled_scene):
+def LineRenderScreen(pre_compiled_scene, y_start, y_end):
+    # print (pre_compiled_scene)
+    scene_str = [''.join (pre_compiled_scene[y]) for y in range (y_start, y_end)]
+
+    for y in range (y_end-y_start):
+        con.print_(0, y_start+y, scene_str[y], alignment=tcod.LEFT)
+        # tcod.console_print_ex (con, 0, y, tcod.BKGND_SET, tcod.LEFT, scene_str[y])
+
+def LineRenderFullScreen(pre_compiled_scene):
     # print (pre_compiled_scene)
     scene_str = [''.join (pre_compiled_scene[y]) for y in range (SCREEN_HEIGHT)]
-
-    for y in range (SCREEN_HEIGHT):
-        con.print_(0, y, scene_str[y], alignment=tcod.LEFT)
-        # tcod.console_print_ex (con, 0, y, tcod.BKGND_SET, tcod.LEFT, scene_str[y])
+    q = ''
+    for y in scene_str:
+        q += y + '\n'
+    con.print_(0, 0, q, alignment=tcod.LEFT)
 
 def SetScreenValues():
     screen_values = GetScreenValues()
@@ -317,21 +342,61 @@ def keyHandler(key):
  
      # movement keys
     if key == 119 : # W KEY
-        map_pos[1] -= 1
+        if (map_pos[1] > 0):
+            map_pos[1] -= 1
  
     if key == 115 : # S KEY 
-        map_pos[1] += 1
+        if (map_pos[1] < HEIGHT-1):
+            map_pos[1] += 1
  
     if key == 97 : # A KEY
-        map_pos[0] -= 1
+        if (map_pos[0] > 0):
+            map_pos[0] -= 1
  
     if key == 100 : # D KEY
-        map_pos[0] += 1
+        if (map_pos[0] < WIDTH-1):
+            map_pos[0] += 1
 
     if (key == 119 or key == 115 or key == 97 or key == 100):
         # print (map_pos)
         setInfoPosition(map_pos[1], map_pos[0])
-        GetScreenValues()
+        # GetScreenValues()
+
+def MouseHandler (event):
+    px = int(SCREEN_WIDTH/2)
+    py = int(SCREEN_HEIGHT/2)
+    button = event.button
+    tile = event.tile
+    
+    dir_x = 0
+    dir_y = 0
+
+    tolerance = 5
+
+    if (tile.x < px-tolerance):
+        dir_x = -1
+    elif (tile.x > px+tolerance):
+        dir_x = 1
+
+    if (tile.y < py-tolerance):
+        dir_y = -1
+    elif (tile.y > py+tolerance):
+        dir_y = 1
+
+    p.add_active_ability(
+        abilities.KnifeThrow
+            (int(SCREEN_WIDTH/2), int(SCREEN_HEIGHT/2),
+            tile.x, tile.y, 
+            dir_x, dir_y)
+    )
+
+def update():
+    for ability in p.active_abilities:
+        for proj in ability.projectiles:
+            destroy = proj.update()
+            if (destroy):
+                ability.projectiles.remove(proj)
+
     
 #############################################
 # Main Game Loop
@@ -339,7 +404,8 @@ def keyHandler(key):
  
  
 def render_loop ():
-    global player_x, player_y
+    while not tcod.console_is_window_closed() and not exit_game:
+        GetScreenValues()
 
     # SetScreenValues()
 
@@ -395,5 +461,14 @@ def main():
             if event.type == "KEYDOWN":
                 exit_game = keyHandler(event.sym)
                 sleep(cooldown)
+            elif event.type == "MOUSEBUTTONDOWN":
+                MouseHandler(event)
+                sleep(cooldown)
+            elif event.type == "QUIT":
+                exit_game = True
+                raise SystemExit()
+
+        update()
+
 
 main()

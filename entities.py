@@ -19,3 +19,8 @@ class Entity:
 class Player(Entity):
     def __init__(self):
         super().__init__()
+
+        self.active_abilities = []
+
+    def add_active_ability (self, ability):
+        self.active_abilities.append (ability)
