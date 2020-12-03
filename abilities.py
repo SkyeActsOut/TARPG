@@ -47,10 +47,13 @@ class Projectile ():
     
         if (self.traveled > self.range):
             return True # Returns true when the projectile should be destroyed
-        self.curr_x += self.dir_x
-        self.curr_y += self.dir_y
+        self.translate(self.dir_x, self.dir_y)
         self.traveled += 1
         return False
+
+    def translate (self, x, y):
+        self.curr_x += x
+        self.curr_y += y
 
 class KnifeThrow(Ability):
     def __init__(self, stx, sty, tx, ty, dir_x, dir_y):
@@ -59,10 +62,10 @@ class KnifeThrow(Ability):
         # Equations for the direction of the KnifeThrow
         # (1-i)*2*-1*dir_y, (1-i)*2*dir_x
 
-        self.projectiles_count = 2
+        self.projectiles_count = 3
         for i in range(self.projectiles_count):
             self.projectiles.append(
-                Projectile(33, 5, 12, self.start_x, self.start_y, 
+                Projectile(45, 5, 12, self.start_x, self.start_y, 
                 (int(self.projectiles_count/2)-i)*2*-1*dir_y, 
                 (int(self.projectiles_count/2)-i)*2*dir_x, 
                 tx, ty, dir_x, dir_y)

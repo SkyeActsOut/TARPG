@@ -47,6 +47,8 @@ player_y = int (SCREEN_HEIGHT / 2)
 
 p = Player()
 
+keys_held = []
+
 class Cell (object):
     def __init__ (self, fg,  bg, char):
         self.fg = fg
@@ -135,6 +137,11 @@ def setInfoPosition(x, y):
 
     ln = f"{px}x{py}"
     menues[1].add_line(1, 17, ln)
+
+def MoveStaticObjects(x_move, y_move):
+    for ability in p.active_abilities:
+        for proj in ability.projectiles:
+            proj.translate(x_move, y_move)
 
 # Based on the game_map values, this gets a np array with the tiles ONLY around the player
 def GetScreenValues():
@@ -335,60 +342,76 @@ def SetScreenValues():
 # ######################################################################
  
  
-def keyHandler(key):
-    # if key.vk == tcod.KEY_ENTER and key.lalt:
-    #     # Alt+Enter: toggle fullscreen
-    #     tcod.console_set_fullscreen(not tcod.console_is_fullscreen())
- 
-     # movement keys
-    if key == 119 : # W KEY
-        if (map_pos[1] > 0):
-            map_pos[1] -= 1
- 
-    if key == 115 : # S KEY 
-        if (map_pos[1] < HEIGHT-1):
-            map_pos[1] += 1
- 
-    if key == 97 : # A KEY
-        if (map_pos[0] > 0):
-            map_pos[0] -= 1
- 
-    if key == 100 : # D KEY
-        if (map_pos[0] < WIDTH-1):
-            map_pos[0] += 1
-
+def keyUpHandler(key):
     if (key == 119 or key == 115 or key == 97 or key == 100):
-        # print (map_pos)
-        setInfoPosition(map_pos[1], map_pos[0])
-        # GetScreenValues()
+        if key in keys_held:
+            keys_held.remove (key)
+
+def keyDownHandler(key):
+    if (key == 119 or key == 115 or key == 97 or key == 100):
+        if key not in keys_held:
+            keys_held.append (key)
+
+def keyHandler():
+
+    if (p.move_cooldown()):
+        for key in keys_held:
+            x_move = 0
+            y_move = 0
+
+            # movement keys
+            if key == 119 : # W KEY
+                if (map_pos[1] > 0):
+                    y_move = 1
+        
+            if key == 115 : # S KEY 
+                if (map_pos[1] < HEIGHT-1):
+                    y_move = -1
+        
+            if key == 97 : # A KEY
+                if (map_pos[0] > 0):
+                    x_move = 1
+        
+            if key == 100 : # D KEY
+                if (map_pos[0] < WIDTH-1):
+                    x_move = -1
+
+            if (key == 119 or key == 115 or key == 97 or key == 100):
+                # print (map_pos)
+                map_pos[1] -= y_move
+                map_pos[0] -= x_move
+                setInfoPosition(map_pos[1], map_pos[0])
+                MoveStaticObjects(x_move, y_move)
+                # GetScreenValues()
 
 def MouseHandler (event):
-    px = int(SCREEN_WIDTH/2)
-    py = int(SCREEN_HEIGHT/2)
-    button = event.button
-    tile = event.tile
-    
-    dir_x = 0
-    dir_y = 0
+    if (p.global_cooldown()):
+        px = int(SCREEN_WIDTH/2)
+        py = int(SCREEN_HEIGHT/2)
+        button = event.button
+        tile = event.tile
+        
+        dir_x = 0
+        dir_y = 0
 
-    tolerance = 5
+        tolerance = 5
 
-    if (tile.x < px-tolerance):
-        dir_x = -1
-    elif (tile.x > px+tolerance):
-        dir_x = 1
+        if (tile.x < px-tolerance):
+            dir_x = -1
+        elif (tile.x > px+tolerance):
+            dir_x = 1
 
-    if (tile.y < py-tolerance):
-        dir_y = -1
-    elif (tile.y > py+tolerance):
-        dir_y = 1
+        if (tile.y < py-tolerance):
+            dir_y = -1
+        elif (tile.y > py+tolerance):
+            dir_y = 1
 
-    p.add_active_ability(
-        abilities.KnifeThrow
-            (int(SCREEN_WIDTH/2), int(SCREEN_HEIGHT/2),
-            tile.x, tile.y, 
-            dir_x, dir_y)
-    )
+        p.add_active_ability(
+            abilities.KnifeThrow
+                (int(SCREEN_WIDTH/2), int(SCREEN_HEIGHT/2),
+                tile.x, tile.y, 
+                dir_x, dir_y)
+        )
 
 def update():
     for ability in p.active_abilities:
@@ -459,15 +482,17 @@ def main():
         
         for event in tcod.event.get():
             if event.type == "KEYDOWN":
-                exit_game = keyHandler(event.sym)
-                sleep(cooldown)
+                keyDownHandler(event.sym)
+                # sleep(cooldown)
+            if event.type == "KEYUP":
+                keyUpHandler(event.sym)
             elif event.type == "MOUSEBUTTONDOWN":
                 MouseHandler(event)
-                sleep(cooldown)
+                # sleep(cooldown)
             elif event.type == "QUIT":
                 exit_game = True
                 raise SystemExit()
-
+        keyHandler()
         update()
 
 
