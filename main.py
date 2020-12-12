@@ -9,7 +9,7 @@ from menu import LogsMenu, StaticInfo, StaticMenu, CircleBar
 import random
 from threading import Thread
 from time import sleep
-from entities import Player
+from entities import Player, Entity
 import abilities
 
 # ######################################################################
@@ -45,15 +45,11 @@ con = 0
 player_x = int (SCREEN_WIDTH / 2)
 player_y = int (SCREEN_HEIGHT / 2)
 
-p = Player()
+p = Player(map_pos[1], map_pos[0])
 
 keys_held = []
 
-class Cell (object):
-    def __init__ (self, fg,  bg, char):
-        self.fg = fg
-        self.bg = (1, 1, 1)
-        self.char = char
+entities = [Entity(20, 20), Entity(200, 200)]
 
 def compile_scene (raw_scene):
     scene = []
@@ -160,6 +156,14 @@ def GetScreenValues():
 
             if (i == player_x and j == player_y):
                 screen_values[i, j] = Tile('#', (255, 20, 255))
+                j+=1
+                continue
+
+            for entity in entities:
+                if (width == entity.pos_x and height == entity.pos_y):
+                    screen_values[i, j] = Tile('#', (255, 20, 20))
+                    stop = True
+            if (stop):
                 j+=1
                 continue
 
@@ -287,15 +291,6 @@ def DrawChunk (start_i, start_j):
         #     for j in chunk_ready:
         #         chunk_ready[j] = False
 
-# Checks to see if "all" chunks are loaded, meaning that if the majority of them are loaded, render them on screen
-# def AllChunksLoaded():
-#     i = 0
-#     for chunk in chunk_ready:
-#         if (chunk == True):
-#             i += 1
-#     print (i)
-#     return i * 1.5 > len(chunk_ready)
-
 def ThreadAllChunks ():
     while not tcod.console_is_window_closed() and not exit_game:
         # chunk_i = 0
@@ -341,17 +336,19 @@ def SetScreenValues():
 # User Input
 # ######################################################################
  
- 
+# Key has been lifted
 def keyUpHandler(key):
     if (key == 119 or key == 115 or key == 97 or key == 100):
         if key in keys_held:
             keys_held.remove (key)
 
+# Key has been pressed
 def keyDownHandler(key):
     if (key == 119 or key == 115 or key == 97 or key == 100):
         if key not in keys_held:
             keys_held.append (key)
 
+# Handles keys
 def keyHandler():
 
     if (p.move_cooldown()):
@@ -380,10 +377,12 @@ def keyHandler():
                 # print (map_pos)
                 map_pos[1] -= y_move
                 map_pos[0] -= x_move
+                p.update_pos(map_pos[1], map_pos[0])
                 setInfoPosition(map_pos[1], map_pos[0])
                 MoveStaticObjects(x_move, y_move)
                 # GetScreenValues()
 
+# Handles mouse input
 def MouseHandler (event):
     if (p.global_cooldown()):
         px = int(SCREEN_WIDTH/2)
@@ -413,12 +412,16 @@ def MouseHandler (event):
                 dir_x, dir_y)
         )
 
+# Updates all possible actions on screen
+# ie. projectiles, enemies, etc.
 def update():
     for ability in p.active_abilities:
         for proj in ability.projectiles:
             destroy = proj.update()
             if (destroy):
                 ability.projectiles.remove(proj)
+    for entity in entities:
+        entity.update(p)
 
     
 #############################################
@@ -429,20 +432,6 @@ def update():
 def render_loop ():
     while not tcod.console_is_window_closed() and not exit_game:
         GetScreenValues()
-
-    # SetScreenValues()
-
-    # ThreadAllChunks()
-
-    # LineRenderScreen()
-
-    # ValueLoop = Thread(target=GetScreenValues)
-    # ValueLoop.start()
-
-    # while not tcod.console_is_window_closed():
-    #     sleep(cooldown * 1.1)
-    #     con.ch [player_y, player_x] = ord ('@')
-    #     con.fg [player_y, player_x] = tcod.white
 
 def flusher_loop ():
     while not tcod.console_is_window_closed() and not exit_game:

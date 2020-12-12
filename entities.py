@@ -1,7 +1,10 @@
 from datetime import datetime
 
 class Entity:
-    def __init__(self):
+    def __init__(self, pos_x, pos_y):
+
+        self.action_stack = []
+
         self.hp = 50
         self.max_hp = 100
 
@@ -9,10 +12,13 @@ class Entity:
         self.max_mana = 100
 
         self.move_time = False
-        self.move_speed = 125 # Tiles per x milliseconds
+        self.move_speed = 50 # Tiles per x milliseconds
 
         self.cooldown_time = False
         self.cooldown_speed = 250 # Global cooldown of abilities per x milliseconds
+
+        self.pos_x = 0
+        self.pos_y = 0
     
     def move_cooldown(self):
         if (not self.move_time):
@@ -41,6 +47,34 @@ class Entity:
             else:
                 return False
 
+    def add_to_stack(self, action):
+        self.action_stack.append(action)
+
+    # Moves the entity towards the player
+    def move_to_player(self, p):
+        dx, dy = (p.pos_x - self.pos_x, p.pos_y - self.pos_y)
+        if (self.move_cooldown()):
+            if (abs(dx) > 2 and abs(dy) > 2):
+                step_x = 0
+                step_y = 0
+                if (dx < -2):
+                    step_x = -1
+                elif (dx > 2):
+                    step_x = 1
+                if (dy < -2):
+                    step_y = -1
+                if (dy > 2):
+                    step_y = 1
+
+                self.update_pos(self.pos_x + step_y, self.pos_y + step_x)
+                print (p.pos_x, p.pos_y, self.pos_x, self.pos_y)
+    
+    def vision(self):
+        pass
+
+    def update(self, p):
+        self.add_to_stack(self.move_to_player(p))
+
     def getHealth(self):
         return self.hp
     def getMaxHealth(self):
@@ -51,9 +85,13 @@ class Entity:
     def getMaxMana(self):
         return self.max_mana
 
+    def update_pos (self, x, y):
+        self.pos_x = x
+        self.pos_y = y
+
 class Player(Entity):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, pos_x, pos_y):
+        super().__init__(pos_x, pos_y)
 
         self.active_abilities = []
 

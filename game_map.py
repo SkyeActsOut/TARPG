@@ -10,6 +10,8 @@ from enum import Enum
 
 from tile import MapTile, Tile
 
+from prefabs import house
+
 seed = 125
 
 generators = []
@@ -17,34 +19,16 @@ gen_i = 2
 for x in range(0, gen_i):
     generators.append (OpenSimplex(seed=seed + x*2000))
 
-HEIGHT = 250
-WIDTH = 250
+HEIGHT = 325
+WIDTH = 325
+# Turns it into a tile array
+tiles = np.empty((WIDTH, HEIGHT), dtype=Tile)
+AREA = HEIGHT * WIDTH
 
 total = HEIGHT + WIDTH
 
 def noise(gen, nx, ny):
     return gen.noise2d(nx, ny) / 2.0 + 0.5
-
-# values_list = []
-# for v in range(0, gen_i):
-#     values = []
-#     for y in range(height):
-#         values.append([0] * width)
-#         for x in range(width):
-#             nx = x/325 - 0.625
-#             ny = y/325 - 0.625
-#             values[y][x] = noise(generators[v], nx, ny)
-#     values_list.append (values)
-
-# values = []
-# for y in range(height):
-#     values.append([0] * width)
-#     for x in range(width):
-#         for v in range(0, gen_i):
-#             values[y][x] += values_list[v][y][x]
-#         values[y][x] /= gen_i * 0.95
-
-# values = []
 
 # THE MAIN WORLD-GEN ALGORITHM
 values = np.empty((HEIGHT, WIDTH))
@@ -71,69 +55,45 @@ for y in range(HEIGHT):
 
 variants = np.array(variants)
 
-biomes = []
+def gen_town (tlx, tly, width, height):
+    buildings = []
+    # total_area = width * height
+    buildings.append(house)
+    buildings.append(house)
 
-# class Biome (Enum):
-#     desert = 1
+    for b in buildings:
+        j = 0
+        # Checks to see if the building would be out of bounds
+        if (tlx + b.width >= WIDTH or
+            tly + b.height >= HEIGHT):
+                continue
+        for tl in b.get_tiles():
+            i = 0
+            for t in tl:
+                tiles[tlx + j][tly + i] = Tile(t, b.get_color(t))
+                i+=1
+            j+=1
 
-def biome_gen_two ():
-    for y in range(height):
-        biomes.append([0] * width)
-        for x in range(width):
-            nx = x/(width*0.1125) - 0.375
-            ny = y/(height*0.1125) - 0.375
-            biomes[y][x] = noise(generators[1], nx, ny)
-            # Check to see if the base value is a plains biome
-            if (not values[y][x] > 0.3 and not values[y][x] < 0.7):
-                biomes[y][x] = 0
-            # Check to see if the base value is in the plains biome
-            if (not values[y][x] > 0.35 and not values[y][x] < 0.75):
-                biomes[y][x] = 0
-        print (f"{y * 100 / height}% DONE!")
+        # Spaces out each building
+        tlx += b.width + 5
+        if (tlx > width):
+            tly = b.height + 4
+            if (tly > height):
+                return
 
-def biome_gen_one():
-    chunk_size = 9
-    desert = [1, False]
-    desert_cap = int(width*height / 3) # THE NUMBER DETERMINES APPROX HOW MANY DESERTS PER MAP
-
-    for i in range(height):   
-        biomes.append([0] * width)
-
-    for j in range(int(height/chunk_size)):
-        
-        for i in range(int(width/chunk_size)):
-
-            for k in range(0, chunk_size):
-
-                for l in range(0, chunk_size):
-
-                    y = j * k
-                    x = i * l
-
-                    # print ((y, x))
-
-                    # GENERATES DESERTS
-                    if (values[y][x] > 0.325 and (values[y][x] < 0.7)):
-                        rng = random.randint(0, desert_cap)
-                        if (rng <= desert[0] and not desert[1]): # Checks to place the initial desert tile
-                            desert[0] = desert_cap*1.125
-                            desert[1] = True
-                            biomes[y][x] = 1
-                        elif (rng <= desert[0] and desert[1]): # Over-time decreases the value of desert[0] until it randomly stops the generation of the biome
-                            desert[0] -= 5
-                            biomes[y][x] = 1
-                        else: # Checks to see if the desert generation should be stopped
-                            desert[0] = 1
-                            desert[1] = False
+towns = []
+for y in range(HEIGHT):
+    towns.append([0] * WIDTH)
+    for x in range(WIDTH):
+        if (values[y][x] > 0.35 and values[y][x] < 0.55):
+            if (random.randint(0, int(AREA/5)) == 0):
+                gen_town (y, x, 65, 65) 
 
 
-# plt.imshow(values)
-# plt.show()
-
-tiles = np.empty((WIDTH, HEIGHT), dtype=Tile)
 for y in range(HEIGHT):
     for x in range(WIDTH):
-        tiles[y][x] = MapTile(values[y][x], variants[y][x])
+        if (not isinstance(tiles[y][x], Tile)):
+            tiles[y][x] = MapTile(values[y][x], variants[y][x])
     print (f"{y * 100 / HEIGHT}% DONE!")
 
 start = (random.randrange(75, WIDTH-75), random.randrange(75, HEIGHT-75))
