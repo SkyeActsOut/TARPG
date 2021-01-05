@@ -96,4 +96,28 @@ for y in range(HEIGHT):
             tiles[y][x] = MapTile(values[y][x], variants[y][x])
     print (f"{y * 100 / HEIGHT}% DONE!")
 
-start = (random.randrange(75, WIDTH-75), random.randrange(75, HEIGHT-75))
+# Calculates the cost values for A* pathfinding
+cost_values = []
+for y in range(HEIGHT):
+    cost_values.append([0] * WIDTH)
+    for x in range(WIDTH):
+        if (values[y][x] < 0.3125):
+            cost_values[y][x] = False
+        elif (values[y][x] < 0.75):
+            cost_values[y][x] = True
+        elif (values[y][x] < 1):
+            cost_values[y][x] = False
+        # else:
+            # cost_values[y][x] = variants[y][x]*0.01 + values[y][x]*2
+cost_values = np.array(cost_values, dtype=bool)
+
+print (cost_values)
+
+def gen_start ():
+    start = (random.randrange(75, WIDTH-75), random.randrange(75, HEIGHT-75))
+    if (cost_values[start[1], start[0]]):
+        return start
+    else:
+        return gen_start()
+
+start = gen_start()

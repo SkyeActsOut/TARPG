@@ -7,6 +7,8 @@ class Tile():
         self.char = t
         self.color = c
 
+        self.in_vision = True
+
 class NullTile(Tile):
     def __init__(self):
         super().__init__('#', (1, 1, 1))

@@ -3,7 +3,7 @@
 
 import libtcodpy as tcod
 import numpy as np
-from game_map import tiles, start, WIDTH, HEIGHT
+from game_map import tiles, start, cost_values, WIDTH, HEIGHT
 from tile import Tile, NullTile, BorderTile, MapTile
 from menu import LogsMenu, StaticInfo, StaticMenu, CircleBar
 import random
@@ -49,7 +49,7 @@ p = Player(map_pos[1], map_pos[0])
 
 keys_held = []
 
-entities = [Entity(20, 20), Entity(200, 200)]
+entities = [Entity(20, 20, cost_values, p), Entity(200, 200, cost_values, p)]
 
 def compile_scene (raw_scene):
     scene = []
@@ -59,7 +59,12 @@ def compile_scene (raw_scene):
 
         for x in range (SCREEN_WIDTH):
             cell = raw_scene[x][y]
-            scene[y].append ('%c%c%c%c%c%c%c%c%c%c' % ((tcod.COLCTRL_FORE_RGB, ) + cell.color + (tcod.COLCTRL_BACK_RGB, ) + (1, 1, 1) + (cell.char, tcod.COLCTRL_STOP)))
+            if (not cell):
+                return
+            if (cell.in_vision):
+                scene[y].append ('%c%c%c%c%c%c%c%c%c%c' % ((tcod.COLCTRL_FORE_RGB, ) + cell.color + (tcod.COLCTRL_BACK_RGB, ) + (1, 1, 1) + (cell.char, tcod.COLCTRL_STOP)))
+            else:
+                scene[y].append ('%c%c%c%c%c%c%c%c%c%c' % ((tcod.COLCTRL_FORE_RGB, ) + (100, 100, 100) + (tcod.COLCTRL_BACK_RGB, ) + (1, 1, 1) + (cell.char, tcod.COLCTRL_STOP)))
 
     return scene
 
@@ -138,6 +143,9 @@ def MoveStaticObjects(x_move, y_move):
     for ability in p.active_abilities:
         for proj in ability.projectiles:
             proj.translate(x_move, y_move)
+
+def in_vision(x, y, r):
+    return (SCREEN_WIDTH/2 - y)**2 + (SCREEN_HEIGHT/2 - x)**2 < r**2
 
 # Based on the game_map values, this gets a np array with the tiles ONLY around the player
 def GetScreenValues():
@@ -231,6 +239,10 @@ def GetScreenValues():
             # IS A NORMAL SCREEN TILE
             else:
                 t = tiles[width][height]
+                if (not in_vision(j, i, p.vision_r)):
+                    t.in_vision = False
+                else:
+                    t.in_vision = True
                 # The tile already has been drawn that exact same way; skip
                 if (t == screen_values[i, j]):
                     screen_values[i, j].reload = True
@@ -323,6 +335,9 @@ def SetScreenValues():
     screen_values = GetScreenValues()
 
 
+def cost_check (x_move, y_move):
+    return cost_values[map_pos[0] + x_move, map_pos[1] + y_move]
+
 # def set_tile (c, color, x, y):
 #     # print ((c, color))
 #     con.ch[y, x] = ord (c)
@@ -351,6 +366,7 @@ def keyDownHandler(key):
 # Handles keys
 def keyHandler():
 
+    # PLAYER MOVEMENT
     if (p.move_cooldown()):
         for key in keys_held:
             x_move = 0
@@ -358,28 +374,33 @@ def keyHandler():
 
             # movement keys
             if key == 119 : # W KEY
-                if (map_pos[1] > 0):
+                # Checks to see if not moving onto edge or in-passable tile
+                if (map_pos[1] > 0 and cost_check(0, -1)):
                     y_move = 1
         
             if key == 115 : # S KEY 
-                if (map_pos[1] < HEIGHT-1):
+                if (map_pos[1] < HEIGHT-1 and cost_check(0, 1)):
                     y_move = -1
         
             if key == 97 : # A KEY
-                if (map_pos[0] > 0):
+                if (map_pos[0] > 0 and cost_check(-1, 0)):
                     x_move = 1
         
             if key == 100 : # D KEY
-                if (map_pos[0] < WIDTH-1):
+                if (map_pos[0] < WIDTH-1 and cost_check(1, 0)):
                     x_move = -1
+                else:
+                    stop = True
 
-            if (key == 119 or key == 115 or key == 97 or key == 100):
+            if (y_move != 0 or x_move != 0):
                 # print (map_pos)
                 map_pos[1] -= y_move
                 map_pos[0] -= x_move
                 p.update_pos(map_pos[1], map_pos[0])
                 setInfoPosition(map_pos[1], map_pos[0])
                 MoveStaticObjects(x_move, y_move)
+                for e in entities:
+                    e.update_astar(p)
                 # GetScreenValues()
 
 # Handles mouse input
@@ -421,7 +442,7 @@ def update():
             if (destroy):
                 ability.projectiles.remove(proj)
     for entity in entities:
-        entity.update(p)
+        entity.update()
 
     
 #############################################
