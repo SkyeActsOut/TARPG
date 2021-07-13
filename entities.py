@@ -14,7 +14,7 @@ class Entity:
         self.max_mana = 100
 
         self.move_time = False
-        self.move_speed = 200 # Tiles per x milliseconds
+        self.move_speed = 175 # Tiles per x milliseconds
 
         self.cooldown_time = False
         self.cooldown_speed = 250 # Global cooldown of abilities per x milliseconds

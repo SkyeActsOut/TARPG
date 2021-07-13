@@ -3,14 +3,15 @@
 
 import libtcodpy as tcod
 import numpy as np
-from game_map import tiles, start, cost_values, WIDTH, HEIGHT
+# from game_map import tiles, start, cost_values, WIDTH, HEIGHT
 from tile import Tile, NullTile, BorderTile, MapTile
-from menu import LogsMenu, StaticInfo, StaticMenu, CircleBar
+from menu import LogsMenu, StaticInfo, StaticMenu, CircleBar, isOnMenu, isTileInMenu, isOnIMenu
 import random
 from threading import Thread
 from time import sleep
 from entities import Player, Entity
 import abilities
+from map_loader import load_map
 
 # ######################################################################
 # Global Game Settings
@@ -24,7 +25,11 @@ LIMIT_FPS = 60  # 20 frames-per-second maximum
 exit_game = False
 
 # Game Controls
-map_pos = [start[0], start[1]]
+# map_pos = [start[0], start[1]]
+map_pos = [0, 0]
+
+tiles, WIDTH, HEIGHT = load_map("commons")
+print(len(tiles))
 
 chunk_size = 16
 
@@ -49,7 +54,7 @@ p = Player(map_pos[1], map_pos[0])
 
 keys_held = []
 
-entities = [Entity(20, 20, cost_values, p), Entity(200, 200, cost_values, p)]
+# entities = [Entity(20, 20, cost_values, p), Entity(200, 200, cost_values, p)]
 
 def compile_scene (raw_scene):
     scene = []
@@ -64,36 +69,22 @@ def compile_scene (raw_scene):
             if (cell.in_vision):
                 scene[y].append ('%c%c%c%c%c%c%c%c%c%c' % ((tcod.COLCTRL_FORE_RGB, ) + cell.color + (tcod.COLCTRL_BACK_RGB, ) + (1, 1, 1) + (cell.char, tcod.COLCTRL_STOP)))
             else:
-                scene[y].append ('%c%c%c%c%c%c%c%c%c%c' % ((tcod.COLCTRL_FORE_RGB, ) + (100, 100, 100) + (tcod.COLCTRL_BACK_RGB, ) + (1, 1, 1) + (cell.char, tcod.COLCTRL_STOP)))
+                scene[y].append ('%c%c%c%c%c%c%c%c%c%c' % ((tcod.COLCTRL_FORE_RGB, ) + greyify(cell.color) + (tcod.COLCTRL_BACK_RGB, ) + (1, 1, 1) + (cell.char, tcod.COLCTRL_STOP)))
+                #   ( greyify ( cell.color[0] ), greyify ( cell.color[1] ), greyify ( cell.color[2] ) )
 
     return scene
 
-# Checks to see if the x,y coords are on any menu
-def isOnMenu(x, y):
-    for m in menues:
-        if (y < m.height + m.y and 
-            y >= m.y and
-            x < m.width + m.x and
-            x >= m.x):
-                return True
-    else:
-        return False
-
-# Checks to see if the x,y coords are on a specific menu
-def isOnIMenu(x, y, i):
-    for m in menues:
-        if m == i:
-            if (y <= m.height + m.y and 
-                y >= m.y-1 and
-                x <= m.width + m.x and
-                x >= m.x-1):
-                return True
-    else:
-        return False
+def greyify(cell):
+    grey_mod = 0.15
+    return (
+        int(cell[0] * grey_mod),
+        int(cell[1] * grey_mod),
+        int(cell[2] * grey_mod)
+    )
 
 def isOnBorder (x, y):
     for m in menues:
-        if ( isOnIMenu (x, y, m) and 
+        if ( isOnIMenu (x, y, m, menues) and 
             (y == m.y-1 or 
             y == m.height + m.y or
             x == m.width + m.x or
@@ -106,16 +97,6 @@ def isOnBorder (x, y):
         #     ( x != 0 or
         #     y != 0)):
         #         return True
-    else:
-        return False
-
-# Checks to see if there xis an existing tile with a character in that menu
-def isTileInMenu (x, y):
-    for m in menues:
-        if (isOnIMenu(x, y, m)):
-            t = m.get_char(x, y)
-            if (t):
-                return t
     else:
         return False
 
@@ -167,13 +148,18 @@ def GetScreenValues():
                 j+=1
                 continue
 
-            for entity in entities:
-                if (width == entity.pos_x and height == entity.pos_y):
-                    screen_values[i, j] = Tile('#', (255, 20, 20))
-                    stop = True
-            if (stop):
-                j+=1
-                continue
+            # for entity in entities:
+            #     if (width == entity.pos_x and height == entity.pos_y):
+            #         if (in_vision(j, i, p.vision_r)):
+            #             screen_values[i, j] = Tile('#', (255, 20, 20))
+            #         else:
+            #             t = tiles[width][height]
+            #             t.in_vision = False
+            #             screen_values[i, j] = t
+            #         stop = True
+            # if (stop):
+            #     j+=1
+            #     continue
 
             # THE HEALTH CIRCLE
             isBar = bars[0].isInCircle(p, health_covered, i, j, True)
@@ -202,8 +188,8 @@ def GetScreenValues():
                 continue
 
             # IS ON A MENU TILE
-            elif (isOnMenu(i, j)):
-                t = isTileInMenu(i, j)
+            elif (isOnMenu(i, j, menues)):
+                t = isTileInMenu(i, j, menues)
                 if (screen_values[i, j] == t):
                     screen_values[i, j].reload = True
                 else: 
@@ -336,7 +322,8 @@ def SetScreenValues():
 
 
 def cost_check (x_move, y_move):
-    return cost_values[map_pos[0] + x_move, map_pos[1] + y_move]
+    return True
+    # return cost_values[map_pos[0] + x_move, map_pos[1] + y_move]
 
 # def set_tile (c, color, x, y):
 #     # print ((c, color))
@@ -399,8 +386,8 @@ def keyHandler():
                 p.update_pos(map_pos[1], map_pos[0])
                 setInfoPosition(map_pos[1], map_pos[0])
                 MoveStaticObjects(x_move, y_move)
-                for e in entities:
-                    e.update_astar(p)
+                # for e in entities:
+                #     e.update_astar(p)
                 # GetScreenValues()
 
 # Handles mouse input
@@ -441,8 +428,9 @@ def update():
             destroy = proj.update()
             if (destroy):
                 ability.projectiles.remove(proj)
-    for entity in entities:
-        entity.update()
+    sleep (cooldown)
+    # for entity in entities:
+    #     entity.update()
 
     
 #############################################
@@ -459,7 +447,7 @@ def flusher_loop ():
         # con.ch [player_y, player_x] = ord ('@')
         # con.fg [player_y, player_x] = (255, 255, 255)
 
-        sleep(cooldown)
+        sleep(cooldown*2)
 
         tcod.console_flush()
 
@@ -504,6 +492,5 @@ def main():
                 raise SystemExit()
         keyHandler()
         update()
-
 
 main()

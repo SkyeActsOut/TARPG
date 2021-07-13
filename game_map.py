@@ -115,9 +115,11 @@ print (cost_values)
 
 def gen_start ():
     start = (random.randrange(75, WIDTH-75), random.randrange(75, HEIGHT-75))
-    if (cost_values[start[1], start[0]]):
-        return start
-    else:
-        return gen_start()
+
+    for i in range (-1, 1):
+        for j in range (-1, 1):
+            if (cost_values[start[1] + i][start[0] + j]):
+                return gen_start()
+    return start
 
 start = gen_start()
