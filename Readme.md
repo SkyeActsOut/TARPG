@@ -1,3 +1,5 @@
+![Screenshot of game-play Circa 2020](https://user-images.githubusercontent.com/34521078/146676763-2a7f036b-4be0-4bb1-b4c4-270011535bd6.jpg)
+
 # TARPG
 TARPG (Tactical ARPG) is a prototype of a game made in Python with a [C++ demo](https://github.com/SkyMocha/TARPG_V2). 
 
